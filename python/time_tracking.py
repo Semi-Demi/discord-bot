@@ -1,4 +1,5 @@
 from datetime import datetime
+from user_xp import calculate_voice_xp, calculate_chat_xp, add_xp
 
 
 def get_active_sessions(server, cursor, conn):
@@ -11,8 +12,8 @@ def get_active_sessions(server, cursor, conn):
             print(f"{member} is in {member.voice.channel} voice channel.")
             active_users[member.id] = member.name
 
-            cursor.execute("SELECT user_id FROM VoiceActive")
-            rows = cursor.fetchall()
+    cursor.execute("SELECT user_id FROM VoiceActive")
+    rows = cursor.fetchall()
 
     print("Removing any inactive sessions")
     for user in rows:
@@ -51,6 +52,7 @@ def remove_active_session(member, conn, cursor):
 # Add new active user sessions
 def add_active_session(member, cursor, conn):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{member} has joined {member.voice.channel} voice channel at {now}.")
 
     query = """INSERT INTO VoiceActive (user_id, channel_id, joined_time, last_heartbeat) 
                 VALUES(%s, %s, %s, %s) ON DUPLICATE KEY UPDATE
@@ -85,6 +87,10 @@ def update_time_stat(server, cursor, conn, member, heartbeat_time=None):
                 time_seconds = time_seconds + VALUES(time_seconds);"""
         cursor.execute(query, (member, time_in_voice))
         conn.commit()
+
+        xp = calculate_voice_xp(time_in_voice)
+        print(xp)
+        add_xp(member, xp, cursor, conn)
 
         # Delete the Active Voice session now that User disconnected
         cursor.execute(
