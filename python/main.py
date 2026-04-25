@@ -7,6 +7,8 @@ import os
 import mysql.connector
 from datetime import datetime
 
+from time_tracking import get_active_sessions
+
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -51,104 +53,12 @@ class Bot(commands.Bot):
         if member:
             self.dj_bot = member
 
-        self.get_active_sessions()
+        get_active_sessions(self.server, self.cursor, self.conn)
 
         # Check if DJ bot is alone
         self.check_dj.start()
         self.stats_command.start()
         self.time_heartbeat.start()
-
-    def get_active_sessions(self):
-        active_users = {}
-        rows = []
-
-        # Get the active voice list
-        for member in self.server.members:
-            if member.voice and member.voice.channel:
-                print(f"{member} is in {member.voice.channel} voice channel.")
-                active_users[member.id] = member.name
-
-                self.cursor.execute("SELECT user_id FROM VoiceActive")
-                rows = self.cursor.fetchall()
-
-        print("Removing any inactive sessions")
-        for user in rows:
-            if user[0] not in active_users.keys():
-                self.update_time_stat(
-                    user[0],
-                    heartbeat_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                )
-                self.remove_active_session(user[0])
-                print(
-                    f"User {self.server.get_member(user[0])} - {user[0]}: Removed from VoiceActive table."
-                )
-
-        print("Adding any new sessions")
-        for user in active_users:
-            if user not in [row[0] for row in rows]:
-                self.add_active_session(self.server.get_member(user))
-                print(
-                    f"User {active_users[user]} - {user}: Added to VoiceActive table."
-                )
-
-    # Remove user sessions that are no longer active
-    def remove_active_session(self, member):
-        self.cursor.execute(
-            """
-            DELETE FROM VoiceActive
-            WHERE user_id = %s
-            """,
-            (member,),
-        )
-        self.conn.commit()
-
-    # Add new active user sessions
-    def add_active_session(self, member):
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        query = """INSERT INTO VoiceActive (user_id, channel_id, joined_time, last_heartbeat) 
-                    VALUES(%s, %s, %s, %s) ON DUPLICATE KEY UPDATE
-                        channel_id = VALUES(channel_id),
-                        last_heartbeat = VALUES(last_heartbeat);"""
-        self.cursor.execute(query, (member.id, member.voice.channel.id, now, now))
-        self.conn.commit()
-
-    def update_time_stat(self, member, heartbeat_time=None):
-        if heartbeat_time:
-            left_time = heartbeat_time
-        else:
-            left_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # print(f"{member} has left {before.channel} voice channel at {left_time}.")
-        query = """SELECT joined_time FROM VoiceActive WHERE user_id = %s;"""
-        bot.cursor.execute(query, (member,))
-        result = bot.cursor.fetchone()
-
-        if result:
-            joined_time = result[0]
-            left_time = datetime.strptime(left_time, "%Y-%m-%d %H:%M:%S")
-            time_in_voice = (left_time - joined_time).total_seconds()
-            print(
-                f"{self.server.get_member(member)} spent {time_in_voice} seconds in voice channel."
-            )
-
-            # Update the User's time in voice stats
-            query = """INSERT INTO VoiceStats (user_id, date, time_seconds) 
-               VALUES(%s, CURDATE(), %s) ON DUPLICATE KEY UPDATE
-                time_seconds = time_seconds + VALUES(time_seconds);"""
-            bot.cursor.execute(query, (member, time_in_voice))
-            bot.conn.commit()
-
-            # Delete the Active Voice session now that User disconnected
-            bot.cursor.execute(
-                """
-                DELETE FROM VoiceActive
-                WHERE user_id = %s
-            """,
-                (member,),
-            )
-
-            bot.conn.commit()
 
     @tasks.loop(minutes=5)
     async def check_dj(self):
@@ -166,8 +76,8 @@ class Bot(commands.Bot):
     async def time_heartbeat(self):
         print("Updating heartbeat")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        bot.cursor.execute(""" UPDATE VoiceActive SET last_heartbeat = %s;""", (now,))
-        bot.conn.commit()
+        self.cursor.execute(""" UPDATE VoiceActive SET last_heartbeat = %s;""", (now,))
+        self.conn.commit()
 
     def check_dj_inactivity(self, dj_bot):
         voice_channel = dj_bot.voice.channel
