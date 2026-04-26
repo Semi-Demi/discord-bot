@@ -7,7 +7,8 @@ CREATE TABLE Users (
     name VARCHAR(255) NOT NULL,
     joined_date  DATETIME,
     xp BIGINT DEFAULT 0,
-    level INT DEFAULT 1,
+    user_level INT DEFAULT 1,
+    prestige INT DEFAULT 0,
     messages_sent BIGINT DEFAULT 0
 );
 

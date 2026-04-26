@@ -1,5 +1,5 @@
 from datetime import datetime
-from user_xp import calculate_voice_xp, calculate_chat_xp, add_xp
+from user_xp import calculate_voice_xp, add_xp
 
 
 def get_active_sessions(server, cursor, conn):
@@ -89,8 +89,12 @@ def update_time_stat(server, cursor, conn, member, heartbeat_time=None):
         conn.commit()
 
         xp = calculate_voice_xp(time_in_voice)
-        print(xp)
-        add_xp(member, xp, cursor, conn)
+        levelup, prestigeup = add_xp(member, xp, cursor, conn)
+
+        if levelup:
+            print(f"{server.get_member(member)} leveled up!")
+        if prestigeup:
+            print(f"{server.get_member(member)} prestiged up!")
 
         # Delete the Active Voice session now that User disconnected
         cursor.execute(

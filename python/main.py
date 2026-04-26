@@ -45,10 +45,12 @@ class Bot(commands.Bot):
 
         # Perform a DB sync to ensure all members are in the database
         for member in self.server.members:
-            query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp) 
-               VALUES(%s, %s, %s, %s);"""
+            query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp, user_level, prestige, messages_sent) 
+               VALUES(%s, %s, %s, %s, %s, %s, %s);"""
 
-            self.cursor.execute(query, (member.id, member.name, member.joined_at, 0))
+            self.cursor.execute(
+                query, (member.id, member.name, member.joined_at, 0, 1, 0, 0)
+            )
             self.conn.commit()
 
         if member:
@@ -169,15 +171,35 @@ async def check_xp(ctx):
         await ctx.send(f"{ctx.author.mention}, you have 0 XP!")
 
 
+@bot.command(name="level")
+async def check_level(ctx):
+    print("level")
+    query = """SELECT user_level, prestige FROM Users WHERE user_id = %s;"""
+    bot.cursor.execute(query, (ctx.author.id,))
+    result = bot.cursor.fetchone()
+
+    if result:
+        level, prestige = result
+
+    if level and prestige:
+        await ctx.send(
+            f"{ctx.author.mention}, you are Prestige {prestige} level {level}!"
+        )
+    elif level:
+        await ctx.send(f"{ctx.author.mention}, you are at level {level}!")
+    else:
+        await ctx.send(f"{ctx.author.mention}, you are at level 1!")
+
+
 # When someone joins the server
 @bot.event
 async def on_member_join(member):
     print(f"{member} has joined the server.")
 
-    query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp) 
-               VALUES(%s, %s, %s, %s);"""
+    query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp, user_level, prestige, messages_sent) 
+               VALUES(%s, %s, %s, %s, %s, %s, %s);"""
 
-    bot.cursor.execute(query, (member.id, member.name, member.joined_at, 0))
+    bot.cursor.execute(query, (member.id, member.name, member.joined_at, 0, 1, 0, 0))
     bot.conn.commit()
 
 
@@ -194,6 +216,7 @@ async def on_message(ctx):
     if ctx.author.bot:
         return
     xp = calculate_chat_xp()
+    print(f"xp: {xp}")
     add_xp(ctx.author.id, xp, bot.cursor, bot.conn)
     await bot.process_commands(ctx)
 
