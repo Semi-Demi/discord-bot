@@ -8,7 +8,7 @@ import mysql.connector
 from datetime import datetime
 
 from time_tracking import add_active_session, get_active_sessions, update_time_stat
-from user_xp import calculate_voice_xp, calculate_chat_xp, add_xp
+from user_xp import calculate_total_xp, calculate_voice_xp, calculate_chat_xp, add_xp
 
 load_dotenv()
 

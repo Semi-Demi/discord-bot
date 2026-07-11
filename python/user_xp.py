@@ -2,8 +2,8 @@ XP_RATE_VOICE = 100  # XP per minute of voice activity
 XP_RATE_CHAT = 50  # XP per message sent
 MAX_LEVEL = 80
 MAX_PRESTIGE = 10
-XP_INCREASE_RATE = 0.1
-XP_PER_LEVEL = 1.15
+XP_INCREASE_RATE = 0.01
+XP_PER_LEVEL = 1.2
 
 
 def calculate_voice_xp(seconds):

@@ -3,13 +3,14 @@ services:
     build: ./mysql/
     container_name: discord-bot-db
     restart: unless-stopped
+    env_file: ".env"
     environment:
       - MYSQL_DATABASE=${DB_NAME}
       - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
       - MYSQL_USER=${DB_BOT_USER}
       - MYSQL_PASSWORD=${DB_BOT_PASSWORD}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - db_data:/var/lib/mysql
 volumes:
