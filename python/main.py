@@ -7,7 +7,8 @@ import os
 import mysql.connector
 from datetime import datetime
 
-from time_tracking import get_active_sessions
+from time_tracking import add_active_session, get_active_sessions, update_time_stat
+from user_xp import calculate_total_xp, calculate_voice_xp, calculate_chat_xp, add_xp
 
 load_dotenv()
 
@@ -44,10 +45,12 @@ class Bot(commands.Bot):
 
         # Perform a DB sync to ensure all members are in the database
         for member in self.server.members:
-            query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp) 
-               VALUES(%s, %s, %s, %s);"""
+            query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp, user_level, prestige, messages_sent) 
+               VALUES(%s, %s, %s, %s, %s, %s, %s);"""
 
-            self.cursor.execute(query, (member.id, member.name, member.joined_at, 0))
+            self.cursor.execute(
+                query, (member.id, member.name, member.joined_at, 0, 1, 0, 0)
+            )
             self.conn.commit()
 
         if member:
@@ -154,64 +157,71 @@ async def update_dj(ctx, url: str):
     pass
 
 
+@bot.command(name="xp")
+async def check_xp(ctx):
+    print("xp")
+    query = """SELECT xp FROM Users WHERE user_id = %s;"""
+    bot.cursor.execute(query, (ctx.author.id,))
+    result = bot.cursor.fetchone()
+
+    if result:
+        xp = result[0]
+        await ctx.send(f"{ctx.author.mention}, you have {xp} XP!")
+    else:
+        await ctx.send(f"{ctx.author.mention}, you have 0 XP!")
+
+
+@bot.command(name="level")
+async def check_level(ctx):
+    print("level")
+    query = """SELECT user_level, prestige FROM Users WHERE user_id = %s;"""
+    bot.cursor.execute(query, (ctx.author.id,))
+    result = bot.cursor.fetchone()
+
+    if result:
+        level, prestige = result
+
+    if level and prestige:
+        await ctx.send(
+            f"{ctx.author.mention}, you are Prestige {prestige} level {level}!"
+        )
+    elif level:
+        await ctx.send(f"{ctx.author.mention}, you are at level {level}!")
+    else:
+        await ctx.send(f"{ctx.author.mention}, you are at level 1!")
+
+
 # When someone joins the server
 @bot.event
 async def on_member_join(member):
     print(f"{member} has joined the server.")
 
-    query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp) 
-               VALUES(%s, %s, %s, %s);"""
+    query = """INSERT IGNORE INTO Users (user_id, name, joined_date, xp, user_level, prestige, messages_sent) 
+               VALUES(%s, %s, %s, %s, %s, %s, %s);"""
 
-    bot.cursor.execute(query, (member.id, member.name, member.joined_at, 0))
+    bot.cursor.execute(query, (member.id, member.name, member.joined_at, 0, 1, 0, 0))
     bot.conn.commit()
 
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-
-    join_time = None
-    left_time = None
-
     if before.channel is None and after.channel:
-        join_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{member} has joined {after.channel} voice channel at {join_time}.")
-        query = """INSERT INTO VoiceActive (user_id, channel_id, joined_time, last_heartbeat) 
-               VALUES(%s, %s, %s, %s) ON DUPLICATE KEY UPDATE
-                channel_id = VALUES(channel_id),
-                joined_time = VALUES(joined_time),
-                last_heartbeat = VALUES(last_heartbeat);"""
-        bot.cursor.execute(query, (member.id, after.channel.id, join_time, join_time))
-        bot.conn.commit()
+        add_active_session(member, bot.cursor, bot.conn)
     elif before.channel and after.channel is None:
-        left_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{member} has left {before.channel} voice channel at {left_time}.")
-        query = """SELECT joined_time FROM VoiceActive WHERE user_id = %s;"""
-        bot.cursor.execute(query, (member.id,))
-        result = bot.cursor.fetchone()
+        update_time_stat(bot.server, bot.cursor, bot.conn, member.id)
 
-        if result:
-            joined_time = result[0]
-            left_time = datetime.strptime(left_time, "%Y-%m-%d %H:%M:%S")
-            time_in_voice = (left_time - joined_time).total_seconds()
-            print(f"{member} spent {time_in_voice} seconds in voice channel.")
 
-            # Update the User's time in voice stats
-            query = """INSERT INTO VoiceStats (user_id, date, time_seconds) 
-               VALUES(%s, CURDATE(), %s) ON DUPLICATE KEY UPDATE
-                time_seconds = time_seconds + VALUES(time_seconds);"""
-            bot.cursor.execute(query, (member.id, time_in_voice))
-            bot.conn.commit()
+@bot.event
+async def on_message(ctx):
+    if ctx.author.bot:
+        return
+    xp = calculate_chat_xp()
+    print(f"xp: {xp}")
+    add_xp(ctx.author.id, xp, bot.cursor, bot.conn)
+    await bot.process_commands(ctx)
 
-            # Delete the Active Voice session now that User disconnected
-            bot.cursor.execute(
-                """
-                DELETE FROM VoiceActive
-                WHERE user_id = %s
-            """,
-                (member.id,),
-            )
-
-            bot.conn.commit()
+    # channel = bot.get_channel(971928329072566336)
+    # await channel.send(xp)
 
 
 bot.run(TOKEN, log_handler=handler, log_level=logging.DEBUG)

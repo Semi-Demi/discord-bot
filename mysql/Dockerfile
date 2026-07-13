@@ -1,2 +1,2 @@
-FROM mysql:8.0.45-debian
+FROM mysql:latest
 COPY ./init.sql /docker-entrypoint-initdb.d/
