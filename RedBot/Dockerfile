@@ -2,8 +2,7 @@ FROM python:3.11
 
 RUN apt-get update && apt-get install -y \
     git \
-    ffmpeg \
-    openjdk-17-jre-headless \
+    openjdk-21-jre\
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,9 +16,9 @@ RUN chmod +x /entrypoint.sh
 
 RUN useradd -m redbot
 
-USER redbot
+RUN chown -R redbot:redbot /data
 
-VOLUME ["/data"]
+USER redbot
 
 WORKDIR /data
 
