@@ -13,7 +13,8 @@ from user_xp import calculate_total_xp, calculate_voice_xp, calculate_chat_xp, a
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-handler = logging.FileHandler(filename="audit-bot.log", encoding="utf-8", mode="a")
+#handler = logging.FileHandler(filename="audit-bot.log", encoding="utf-8", mode="a")
+handler = logging.StreamHandler()
 
 intents = discord.Intents.default()
 intents.message_content = True

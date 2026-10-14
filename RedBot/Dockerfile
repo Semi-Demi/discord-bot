@@ -1,4 +1,4 @@
-FROM python:3.11-bullseye
+FROM python:3.11
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -12,7 +12,7 @@ RUN python -m pip install -U pip wheel \
 
 RUN mkdir -p /data
 
-COPY entry.sh /entrypoint.sh
+COPY RedBot/entry.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 RUN useradd -m redbot
