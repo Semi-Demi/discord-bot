@@ -1,17 +1,41 @@
 services:
-  mysql:
-    build: ./mysql/
-    container_name: discord-bot-db
+  mariadb:
+    build:
+      context: .
+      dockerfile: mariadb/Dockerfile
+    container_name: mariadb-discord
     restart: unless-stopped
-    env_file: ".env"
     environment:
-      - MYSQL_DATABASE=${DB_NAME}
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
-      - MYSQL_USER=${DB_BOT_USER}
-      - MYSQL_PASSWORD=${DB_BOT_PASSWORD}
-    ports:
-      - "127.0.0.1:3306:3306"
+      - MARIADB_DATABASE=${MARIADB_DATABASE}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - internal-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  python-bot:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    container_name: python-discord-bot
+    restart: unless-stopped
+    env_file: ".env"
+    networks:
+      - internal-network
+      - internet-network
+    depends_on:
+      mariadb:
+        condition: service_healthy
 volumes:
   db_data:
+networks:
+  internal-network:
+    internal: true
+  internet-network:
