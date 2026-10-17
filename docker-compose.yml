@@ -52,7 +52,17 @@ services:
     env_file: Lavalink/.env
     restart: unless-stopped
     networks:
+      - cipher-network
       - internet-network
+  yt-cipher:
+     build:
+      context: .
+      dockerfile: YTCipher/Dockerfile
+    container_name: yt-chipher-lavalink
+    env_file: YTCipher/.env
+    restart: unless-stopped
+    networks:
+      - cipher-network
 volumes:
   db_data:
   redbot_data:
@@ -60,3 +70,4 @@ networks:
   internal-network:
     internal: true
   internet-network:
+  cipher-network:

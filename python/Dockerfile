@@ -12,4 +12,10 @@ COPY python/time_tracking.py time_tracking.py
 COPY python/user_xp.py user_xp.py
 COPY python/main.py main.py
 
+RUN useradd -m pythonbot
+
+RUN chown -R pythonbot:pythonbot /app/discord-bot
+
+USER pythonbot
+
 CMD ["uv", "run", "main.py"]
